@@ -20,8 +20,6 @@
 
 // MODULES //
 
-var isRowMajor = require( '@stdlib/ndarray-base-assert-is-row-major-string' );
-var consensusOrder = require( '@stdlib/ndarray-base-consensus-order' );
 var copyIndexed = require( '@stdlib/array-base-copy-indexed' );
 var incrementOffsets = require( '@stdlib/ndarray-base-kernels-utils-increment-offsets' );
 var setViewOffsets = require( '@stdlib/ndarray-base-set-descriptor-offsets' );
@@ -58,14 +56,14 @@ var offsets = require( '@stdlib/ndarray-base-offsets' );
 * var zbuf = new Float64Array( [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ] );
 *
 * // Define the array shapes:
-* var xsh = [ 1, 1, 1, 1, 3, 2, 2 ];
-* var ysh = [ 1, 1, 1, 1, 3, 2, 2 ];
-* var zsh = [ 1, 1, 1, 1, 3, 2, 2 ];
+* var xsh = [ 3, 2, 2 ];
+* var ysh = [ 3, 2, 2 ];
+* var zsh = [ 3, 2, 2 ];
 *
 * // Define the array strides:
-* var sx = [ 12, 12, 12, 12, 4, 2, 1 ];
-* var sy = [ 12, 12, 12, 12, 4, 2, 1 ];
-* var sz = [ 12, 12, 12, 12, 4, 2, 1 ];
+* var sx = [ 4, 2, 1 ];
+* var sy = [ 4, 2, 1 ];
+* var sz = [ 4, 2, 1 ];
 *
 * // Define the index offsets:
 * var ox = 0;
@@ -152,115 +150,30 @@ var offsets = require( '@stdlib/ndarray-base-offsets' );
 * };
 *
 * // Apply strided function:
-* kernel( gwxpy, [ x, y, z ], views, [ 1, 1, 1, 1, 3 ], [ 12, 12, 12, 12, 4 ], [ 12, 12, 12, 12, 4 ], [ 12, 12, 12, 12, 4 ], strategy, strategy, strategy, {} );
+* kernel( gwxpy, [ x, y, z ], views, [ 3 ], [ 4 ], [ 4 ], [ 4 ], strategy, strategy, strategy, {} );
 *
 * var arr = ndarray2array( z.data, z.shape, z.strides, z.offset, z.order );
-* // returns [ [ [ [ [ [ [ 3.0, 5.0 ], [ 7.0, 9.0 ] ], [ [ 11.0, 13.0 ], [ 15.0, 17.0 ] ], [ [ 19.0, 21.0 ], [ 23.0, 25.0 ] ] ] ] ] ] ]
+* // returns [ [ [ 3.0, 5.0 ], [ 7.0, 9.0 ] ], [ [ 11.0, 13.0 ], [ 15.0, 17.0 ] ], [ [ 19.0, 21.0 ], [ 23.0, 25.0 ] ] ]
 */
 function kernel( fcn, arrays, views, shape, stridesX, stridesY, stridesZ, strategyX, strategyY, strategyZ, opts ) { // eslint-disable-line max-len, max-params
 	var dv0;
-	var dv1;
-	var dv2;
-	var dv3;
-	var dv4;
 	var S0;
-	var S1;
-	var S2;
-	var S3;
-	var S4;
-	var sv;
 	var iv;
 	var i0;
-	var i1;
-	var i2;
-	var i3;
-	var i4;
 	var v;
 	var i;
 
 	// Note on variable naming convention: S#, dv#, i# where # corresponds to the loop number, with `0` being the innermost loop...
 
 	// Extract loop variables for purposes of loop interchange: dimensions and loop offset (pointer) increments...
-	if ( isRowMajor( consensusOrder( stridesX, stridesY, stridesZ ) ) ) {
-		// For row-major ndarrays, the last dimensions have the fastest changing indices...
-		S0 = shape[ 4 ];
-		S1 = shape[ 3 ];
-		S2 = shape[ 2 ];
-		S3 = shape[ 1 ];
-		S4 = shape[ 0 ];
-		dv0 = [                                   // offset increment for innermost loop
-			stridesX[4],
-			stridesY[4],
-			stridesZ[4]
-		];
-		dv1 = [
-			stridesX[3] - ( S0*stridesX[4] ),
-			stridesY[3] - ( S0*stridesY[4] ),
-			stridesZ[3] - ( S0*stridesZ[4] )
-		];
-		dv2 = [
-			stridesX[2] - ( S1*stridesX[3] ),
-			stridesY[2] - ( S1*stridesY[3] ),
-			stridesZ[2] - ( S1*stridesZ[3] )
-		];
-		dv3 = [
-			stridesX[1] - ( S2*stridesX[2] ),
-			stridesY[1] - ( S2*stridesY[2] ),
-			stridesZ[1] - ( S2*stridesZ[2] )
-		];
-		dv4 = [                                   // offset increment for outermost loop
-			stridesX[0] - ( S3*stridesX[1] ),
-			stridesY[0] - ( S3*stridesY[1] ),
-			stridesZ[0] - ( S3*stridesZ[1] )
-		];
-		for ( i = 3; i < arrays.length; i++ ) {
-			sv = arrays[ i ].strides;
-			dv0.push( sv[4] );
-			dv1.push( sv[3] - ( S0*sv[4] ) );
-			dv2.push( sv[2] - ( S1*sv[3] ) );
-			dv3.push( sv[1] - ( S2*sv[2] ) );
-			dv4.push( sv[0] - ( S3*sv[1] ) );
-		}
-	} else { // order === 'column-major'
-		// For column-major ndarrays, the first dimensions have the fastest changing indices...
-		S0 = shape[ 0 ];
-		S1 = shape[ 1 ];
-		S2 = shape[ 2 ];
-		S3 = shape[ 3 ];
-		S4 = shape[ 4 ];
-		dv0 = [                                   // offset increment for innermost loop
-			stridesX[0],
-			stridesY[0],
-			stridesZ[0]
-		];
-		dv1 = [
-			stridesX[1] - ( S0*stridesX[0] ),
-			stridesY[1] - ( S0*stridesY[0] ),
-			stridesZ[1] - ( S0*stridesZ[0] )
-		];
-		dv2 = [
-			stridesX[2] - ( S1*stridesX[1] ),
-			stridesY[2] - ( S1*stridesY[1] ),
-			stridesZ[2] - ( S1*stridesZ[1] )
-		];
-		dv3 = [
-			stridesX[3] - ( S2*stridesX[2] ),
-			stridesY[3] - ( S2*stridesY[2] ),
-			stridesZ[3] - ( S2*stridesZ[2] )
-		];
-		dv4 = [                                   // offset increment for outermost loop
-			stridesX[4] - ( S3*stridesX[3] ),
-			stridesY[4] - ( S3*stridesY[3] ),
-			stridesZ[4] - ( S3*stridesZ[3] )
-		];
-		for ( i = 3; i < arrays.length; i++ ) {
-			sv = arrays[ i ].strides;
-			dv0.push( sv[0] );
-			dv1.push( sv[1] - ( S0*sv[0] ) );
-			dv2.push( sv[2] - ( S1*sv[1] ) );
-			dv3.push( sv[3] - ( S2*sv[2] ) );
-			dv4.push( sv[4] - ( S3*sv[3] ) );
-		}
+	S0 = shape[ 0 ];
+	dv0 = [
+		stridesX[0],
+		stridesY[0],
+		stridesZ[0]
+	];
+	for ( i = 3; i < arrays.length; i++ ) {
+		dv0.push( arrays[i].strides[0] );
 	}
 	// Resolve a list of pointers to the first indexed elements in the respective ndarrays:
 	iv = offsets( arrays );
@@ -269,26 +182,14 @@ function kernel( fcn, arrays, views, shape, stridesX, stridesY, stridesZ, strate
 	v = copyIndexed( views );
 
 	// Iterate over the loop dimensions...
-	for ( i4 = 0; i4 < S4; i4++ ) {
-		for ( i3 = 0; i3 < S3; i3++ ) {
-			for ( i2 = 0; i2 < S2; i2++ ) {
-				for ( i1 = 0; i1 < S1; i1++ ) {
-					for ( i0 = 0; i0 < S0; i0++ ) {
-						setViewOffsets( views, iv );
-						v[ 0 ] = strategyX.input( views[ 0 ] );
-						v[ 1 ] = strategyY.input( views[ 1 ] );
-						v[ 2 ] = strategyZ.input( views[ 2 ] );
-						fcn( v, opts );
-						strategyZ.output( views[ 2 ] );
-						incrementOffsets( iv, dv0 );
-					}
-					incrementOffsets( iv, dv1 );
-				}
-				incrementOffsets( iv, dv2 );
-			}
-			incrementOffsets( iv, dv3 );
-		}
-		incrementOffsets( iv, dv4 );
+	for ( i0 = 0; i0 < S0; i0++ ) {
+		setViewOffsets( views, iv );
+		v[ 0 ] = strategyX.input( views[ 0 ] );
+		v[ 1 ] = strategyY.input( views[ 1 ] );
+		v[ 2 ] = strategyZ.input( views[ 2 ] );
+		fcn( v, opts );
+		strategyZ.output( views[ 2 ] );
+		incrementOffsets( iv, dv0 );
 	}
 }
 
